@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asian Paints RFP Co-pilot | Agentic AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Animations */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-slow {
+            animation: pulse-subtle 3s infinite ease-in-out;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Status Dot Animation */
+        .status-dot {
+            height: 8px; width: 8px; border-radius: 50%; display: inline-block;
+        }
+        .status-idle { background-color: #94a3b8; }
+        .status-active { background-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2); }
+        .status-alert { background-color: #ef4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+        
+        .agent-card { transition: all 0.3s ease; }
+        .agent-active { background-color: rgba(30, 41, 59, 0.8); border-left: 3px solid #f97316; }
+
+        /* Markdown Styles */
+        .prose h3 { font-weight: 700; color: #1e293b; margin-top: 1em; margin-bottom: 0.5em; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose p { margin-bottom: 0.8em; line-height: 1.6; }
+        .prose strong { color: #0f172a; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen flex overflow-hidden text-slate-800">
+
+    <!-- API KEY MODAL -->
+    <div id="api-modal" class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mx-auto mb-4">
+                    <i class="ph-fill ph-key text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-bold text-slate-800">Configure AI Engine</h2>
+                <p class="text-sm text-slate-500 mt-2">Enter your Gemini API Key to activate the agents.</p>
+            </div>
+            <input type="password" id="api-key-input" class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition" placeholder="Paste API Key here...">
+            <p class="text-xs text-slate-400 mt-3 mb-6">Your key is stored locally in your browser.</p>
+            <div class="flex gap-3">
+                <button onclick="closeApiModal()" class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-600 font-medium hover:bg-slate-50">Cancel</button>
+                <button onclick="saveApiKey()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-md">Activate Agents</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR: The Agent Team -->
+    <aside class="w-80 bg-slate-900 text-white flex flex-col shadow-2xl z-20 flex-shrink-0">
+        <!-- Logo Area -->
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                AP
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-wide">RFP Co-pilot</h1>
+                <p class="text-xs text-slate-400 font-medium">Enterprise Edition v1.0</p>
+            </div>
+        </div>
+
+        <!-- Agent List -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-2">Agentic Workflow</h3>
+            
+            <!-- Agent 1: Strategist -->
+            <div id="agent-strategist" class="agent-card flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-800/50">
+                <div class="p-2 bg-blue-500/20 text-blue-400 rounded-md border border-blue-500/30"><i class="ph-fill ph-brain text-lg"></i></div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                        <p class="font-medium text-sm">Strategist</p>
+                        <span class="status-dot status-idle" id="status-strategist"></span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5" id="desc-strategist">Bid/No-Bid Analysis</p>
+                </div>
+            </div>
+
+            <!-- Agent 2: Drafter -->
+            <div id="agent-drafter" class="agent-card flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-800/50">
+                <div class="p-2 bg-purple-500/20 text-purple-400 rounded-md border border-purple-500/30"><i class="ph-fill ph-pen-nib text-lg"></i></div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                        <p class="font-medium text-sm">Drafter</p>
+                        <span class="status-dot status-idle" id="status-drafter"></span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5" id="desc-drafter">RAG Content Gen</p>
+                </div>
+            </div>
+
+            <!-- Agent 3: Compliance -->
+            <div id="agent-compliance" class="agent-card flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-800/50">
+                <div class="p-2 bg-red-500/20 text-red-400 rounded-md border border-red-500/30"><i class="ph-fill ph-shield-warning text-lg"></i></div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                        <p class="font-medium text-sm">Compliance</p>
+                        <span class="status-dot status-idle" id="status-compliance"></span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5" id="desc-compliance">Risk Guardrails</p>
+                </div>
+            </div>
+            
+            <!-- Agent 4: Persuasion -->
+            <div id="agent-persuasion" class="agent-card flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-800/50">
+                <div class="p-2 bg-emerald-500/20 text-emerald-400 rounded-md border border-emerald-500/30"><i class="ph-fill ph-magic-wand text-lg"></i></div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                        <p class="font-medium text-sm">Persuasion</p>
+                        <span class="status-dot status-idle" id="status-persuasion"></span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5" id="desc-persuasion">Tone Optimization</p>
+                </div>
+            </div>
+
+             <!-- Agent 5: Librarian -->
+             <div id="agent-librarian" class="agent-card flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-800/50">
+                <div class="p-2 bg-amber-500/20 text-amber-400 rounded-md border border-amber-500/30"><i class="ph-fill ph-books text-lg"></i></div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                        <p class="font-medium text-sm">Librarian</p>
+                        <span class="status-dot status-idle" id="status-librarian"></span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5" id="desc-librarian">Knowledge Learning</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Profile -->
+        <div class="p-4 border-t border-slate-800 bg-slate-900">
+            <div class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 cursor-pointer transition">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-r from-gray-700 to-gray-600 flex items-center justify-center font-bold text-sm border border-slate-600">VS</div>
+                <div>
+                    <p class="text-sm font-semibold text-white">Vikram Singh</p>
+                    <p class="text-xs text-slate-400">Sales Manager</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col relative bg-white">
+        
+        <!-- Top Navigation -->
+        <header class="h-16 border-b border-slate-100 flex items-center justify-between px-8 bg-white/80 backdrop-blur sticky top-0 z-10">
+            <div class="flex items-center gap-2 text-slate-500">
+                <span class="text-sm font-medium">Project:</span>
+                <span class="text-sm font-semibold text-slate-800 bg-slate-100 px-2 py-1 rounded">New Proposal</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-slate-400 flex items-center gap-1"><i class="ph-fill ph-check-circle text-green-500"></i> System Operational</span>
+                <button class="text-slate-400 hover:text-slate-600"><i class="ph ph-bell text-xl"></i></button>
+                <button onclick="openApiModal()" class="text-slate-400 hover:text-slate-600 flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 rounded-lg transition" title="Settings">
+                    <i class="ph ph-gear text-xl"></i>
+                    <span class="text-xs font-medium">Config</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- DYNAMIC WORKSPACE -->
+        <div id="workspace" class="flex-1 overflow-y-auto p-8 flex flex-col">
+            
+            <!-- VIEW: WELCOME STATE (The Prompt) -->
+            <div id="view-welcome" class="flex-1 flex flex-col items-center justify-center max-w-3xl mx-auto w-full transition-all duration-500">
+                
+                <!-- Hero Icon -->
+                <div class="mb-8 relative">
+                    <div class="absolute inset-0 bg-orange-100 rounded-full blur-xl opacity-70 animate-pulse-slow"></div>
+                    <div class="relative w-20 h-20 bg-white rounded-2xl shadow-lg border border-slate-100 flex items-center justify-center">
+                        <i class="ph-fill ph-robot text-4xl text-orange-500"></i>
+                    </div>
+                </div>
+
+                <!-- Main Heading -->
+                <h1 class="text-3xl font-bold text-slate-900 mb-2 text-center">Welcome to the Asian Paints RFP Co-Pilot</h1>
+                <p class="text-lg text-slate-500 mb-10 text-center">Your Intelligent Proposal Partner for B2B Tenders</p>
+
+                <!-- Input Area -->
+                <div class="w-full relative group mb-8">
+                    <div class="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
+                    <div class="relative bg-white rounded-xl shadow-lg border border-slate-200 p-2">
+                        <!-- Text Area for RFP Content -->
+                        <textarea id="rfp-input" 
+                            class="w-full px-4 py-3 bg-transparent outline-none text-slate-700 placeholder-slate-400 resize-none h-24" 
+                            placeholder="Paste RFP content here to analyze... (e.g. 'Project requires 15 year warranty, anti-bacterial coating...')"></textarea>
+                        
+                        <div class="flex justify-between items-center border-t border-slate-100 pt-2 px-2">
+                            <button class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition" onclick="document.getElementById('file-upload').click()">
+                                <i class="ph ph-paperclip text-xl"></i> <span class="text-xs ml-1">Upload PDF</span>
+                            </button>
+                            <input type="file" id="file-upload" class="hidden" onchange="alert('In this demo, please paste the text content directly above for instant analysis.')">
+                            
+                            <button class="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition shadow-md flex items-center gap-2" onclick="startAnalysis()">
+                                <span>Analyze</span>
+                                <i class="ph-bold ph-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-2 flex gap-4 text-xs text-slate-400 justify-center">
+                    <span class="flex items-center gap-1"><i class="ph ph-sparkle text-orange-500"></i> Powered by Gemini 2.0 Flash</span>
+                </div>
+
+            </div>
+
+            <!-- VIEW: ACTIVE WORKING STATE (Hidden initially) -->
+            <div id="view-active" class="hidden flex-1 flex flex-col max-w-5xl mx-auto w-full">
+                <!-- Chat History / Activity Feed -->
+                <div id="chat-feed" class="flex-1 space-y-6 pb-20">
+                    <!-- Dynamic content will be injected here via JS -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- JavaScript for Logic -->
+    <script>
+        let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || "";
+        let currentDraft = "";
+
+        // --- UI Functions ---
+
+        function openApiModal() {
+            document.getElementById('api-modal').classList.remove('hidden');
+            document.getElementById('api-key-input').value = GEMINI_API_KEY;
+        }
+
+        function closeApiModal() {
+            document.getElementById('api-modal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (key) {
+                GEMINI_API_KEY = key;
+                localStorage.setItem('gemini_api_key', key);
+                closeApiModal();
+                alert("API Key Saved! You can now use the agents.");
+            } else {
+                alert("Please enter a valid API Key.");
+            }
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                startAnalysis();
+            }
+        }
+
+        // --- Core Application Logic ---
+
+        function startAnalysis() {
+            const rfpText = document.getElementById('rfp-input').value.trim();
+            
+            if (!GEMINI_API_KEY) {
+                openApiModal();
+                return;
+            }
+
+            if (!rfpText) {
+                alert("Please paste some RFP text to analyze.");
+                return;
+            }
+
+            // 1. Switch Views
+            document.getElementById('view-welcome').classList.add('hidden');
+            document.getElementById('view-active').classList.remove('hidden');
+            
+            // 2. Add User Message
+            addMessageToFeed('user', `Analyzing RFP Content: "${rfpText.substring(0, 100)}..."`);
+
+            // 3. Trigger Strategist
+            runStrategistAgent(rfpText);
+        }
+
+        async function runStrategistAgent(rfpText) {
+            updateAgentStatus('strategist', 'active', 'Analyzing Bid...');
+            const thinkingId = addThinkingMessage('Strategist Agent');
+
+            // Prompt Engineering for Strategist
+            const prompt = `
+                You are the 'Strategist Agent' for Asian Paints B2B Sales. 
+                Analyze the following RFP Text and provide a JSON response with:
+                1. "decision": "BID" or "NO-BID"
+                2. "probability": A percentage (e.g., "85%")
+                3. "value": Estimated deal value (e.g. "$1.2M")
+                4. "effort": "Low", "Medium", or "High"
+                5. "reasoning": A 1-sentence summary of why.
+                6. "insight": A strategic insight about the product match.
+
+                RFP Text: "${rfpText}"
+                
+                Return ONLY raw JSON. No markdown formatting.
+            `;
+
+            try {
+                const response = await callGemini(prompt);
+                const data = JSON.parse(cleanJson(response));
+                
+                // Update UI with real data
+                updateStrategistUI(thinkingId, data, rfpText);
+            } catch (error) {
+                console.error(error);
+                document.getElementById(thinkingId).innerHTML = `<div class="text-red-500 p-4 border rounded bg-red-50">Error: ${error.message}</div>`;
+                updateAgentStatus('strategist', 'alert', 'Error');
+            }
+        }
+
+        async function runDrafterAgent(rfpText) {
+            updateAgentStatus('drafter', 'active', 'Drafting Content...');
+            const thinkingId = addThinkingMessage('Drafter Agent');
+
+            const prompt = `
+                You are the 'Drafter Agent' for Asian Paints.
+                Based on this RFP requirement: "${rfpText}"
+                
+                Draft a professional, persuasive response for the technical specification section.
+                Highlight Asian Paints 'Royale Health Shield' or 'Apcolite' products where relevant.
+                Use technical language but keep it engaging.
+                Limit to 150 words.
+            `;
+
+            try {
+                const draft = await callGemini(prompt);
+                currentDraft = draft; // Store for compliance check
+                
+                // Update UI
+                const container = document.getElementById(thinkingId);
+                container.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white shadow-lg flex-shrink-0">
+                        <i class="ph-fill ph-pen-nib text-xl"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 px-6 py-4 rounded-2xl rounded-tl-none shadow-sm max-w-3xl w-full">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="font-bold text-slate-800">Drafter Agent</span>
+                            <span class="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">Draft Generated</span>
+                        </div>
+                        <div class="prose prose-sm text-slate-600 max-w-none">
+                            ${marked.parse(draft)}
+                        </div>
+                    </div>
+                `;
+                updateAgentStatus('drafter', 'idle', 'Draft Complete');
+                
+                // Trigger Compliance Automatically
+                setTimeout(() => runComplianceAgent(draft), 1000);
+
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function runComplianceAgent(draftText) {
+            updateAgentStatus('compliance', 'active', 'Auditing...');
+            const thinkingId = addThinkingMessage('Compliance Agent');
+
+            const prompt = `
+                You are the 'Compliance Auditor' for Asian Paints.
+                Review this draft response: "${draftText}"
+
+                Your rules:
+                1. Warranty cannot exceed 10 years.
+                2. Must mention "Green-Assure" if sustainability is implied.
+                3. Cannot promise "forever" durability.
+
+                If you find a violation, explain it and provide a corrected version.
+                If clean, say "No risks detected."
+                
+                Format: 
+                Status: [RISK DETECTED / CLEAN]
+                Issue: [Explanation]
+                Correction: [Corrected Text if needed]
+            `;
+
+            try {
+                const audit = await callGemini(prompt);
+                
+                const isRisk = audit.includes("RISK DETECTED");
+                const colorClass = isRisk ? "red" : "green";
+                const iconClass = isRisk ? "ph-shield-warning" : "ph-shield-check";
+                const statusText = isRisk ? "RISK FOUND" : "CLEAN";
+
+                const container = document.getElementById(thinkingId);
+                container.innerHTML = `
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 rounded-full bg-${colorClass}-600 flex items-center justify-center text-white shadow-lg flex-shrink-0 ${isRisk ? 'animate-pulse' : ''}">
+                            <i class="ph-fill ${iconClass} text-xl"></i>
+                        </div>
+                        <div class="bg-${colorClass}-50 border border-${colorClass}-200 px-6 py-4 rounded-2xl rounded-tl-none shadow-sm max-w-2xl w-full">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="font-bold text-${colorClass}-800">Compliance Agent</span>
+                                <span class="text-xs bg-${colorClass}-200 text-${colorClass}-800 px-2 py-0.5 rounded-full font-bold">${statusText}</span>
+                            </div>
+                            <div class="text-sm text-${colorClass}-800 whitespace-pre-wrap font-medium">${audit}</div>
+                        </div>
+                    </div>
+                `;
+                updateAgentStatus('compliance', isRisk ? 'alert' : 'idle', isRisk ? 'Risk Found' : 'Audit Passed');
+
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // --- Helper Functions ---
+
+        async function callGemini(promptText) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }]
+                })
+            });
+
+            if (!response.ok) throw new Error("Gemini API Error: " + response.statusText);
+            
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        function cleanJson(text) {
+            // Remove markdown code blocks if Gemini adds them
+            return text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        function addMessageToFeed(role, text) {
+            const chatFeed = document.getElementById('chat-feed');
+            chatFeed.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-slate-100 text-slate-800 px-6 py-4 rounded-2xl rounded-tr-none max-w-xl">
+                        <p class="font-medium">${text}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addThinkingMessage(agentName) {
+            const chatFeed = document.getElementById('chat-feed');
+            const id = 'thinking-' + Date.now();
+            chatFeed.innerHTML += `
+                <div id="${id}" class="flex gap-4">
+                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 border border-slate-300 flex-shrink-0">
+                        <i class="ph-fill ph-spinner animate-spin text-xl"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 px-6 py-4 rounded-2xl rounded-tl-none shadow-sm max-w-md w-full">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="font-bold text-slate-800">${agentName}</span>
+                            <span class="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium">Processing...</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-2 bg-slate-100 rounded w-3/4 animate-pulse"></div>
+                            <div class="h-2 bg-slate-100 rounded w-1/2 animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            // Scroll to bottom
+            const workspace = document.getElementById('workspace');
+            workspace.scrollTop = workspace.scrollHeight;
+            return id;
+        }
+
+        function updateStrategistUI(containerId, data, rfpText) {
+            const container = document.getElementById(containerId);
+            const colorClass = data.decision === "BID" ? "green" : "red";
+            
+            container.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg flex-shrink-0">
+                    <i class="ph-fill ph-brain text-xl"></i>
+                </div>
+                <div class="bg-white border border-slate-200 p-0 rounded-2xl rounded-tl-none shadow-sm max-w-2xl w-full overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 bg-slate-50/50">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg">Strategic Analysis</h3>
+                                <p class="text-sm text-slate-500">Based on RFP Content</p>
+                            </div>
+                            <span class="bg-${colorClass}-100 text-${colorClass}-700 px-3 py-1 rounded-full text-xs font-bold border border-${colorClass}-200">DECISION: ${data.decision}</span>
+                        </div>
+                    </div>
+                    <div class="p-5 grid grid-cols-3 gap-4">
+                        <div class="text-center p-3 bg-slate-50 rounded-lg">
+                            <div class="text-2xl font-bold text-slate-800">${data.probability}</div>
+                            <div class="text-xs text-slate-500 font-medium uppercase mt-1">Win Prob.</div>
+                        </div>
+                        <div class="text-center p-3 bg-slate-50 rounded-lg">
+                            <div class="text-2xl font-bold text-slate-800">${data.value}</div>
+                            <div class="text-xs text-slate-500 font-medium uppercase mt-1">Est. Value</div>
+                        </div>
+                        <div class="text-center p-3 bg-slate-50 rounded-lg">
+                            <div class="text-2xl font-bold text-orange-500">${data.effort}</div>
+                            <div class="text-xs text-slate-500 font-medium uppercase mt-1">Effort</div>
+                        </div>
+                    </div>
+                    <div class="px-5 pb-4">
+                        <p class="text-sm text-slate-600 italic">"${data.reasoning}"</p>
+                    </div>
+                    <div class="p-4 bg-blue-50/50 border-t border-blue-100 flex justify-between items-center">
+                        <p class="text-sm text-blue-800"><span class="font-semibold">Insight:</span> ${data.insight}</p>
+                        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition" onclick="runDrafterAgent('${rfpText.replace(/'/g, "\\'")}')">Start Drafting</button>
+                    </div>
+                </div>
+            `;
+            updateAgentStatus('strategist', 'idle', 'Analysis Complete');
+        }
+
+        function updateAgentStatus(agentId, status, text) {
+            const card = document.getElementById('agent-' + agentId);
+            const dot = document.getElementById('status-' + agentId);
+            const desc = document.getElementById('desc-' + agentId);
+            
+            // Remove active classes
+            document.querySelectorAll('.agent-card').forEach(c => {
+                c.classList.remove('agent-active', 'bg-slate-800', 'border-slate-700');
+                c.classList.add('bg-slate-800/30');
+            });
+
+            if (status === 'active') {
+                card.classList.add('agent-active');
+                dot.className = 'status-dot status-active';
+                desc.innerText = text;
+                
+                desc.classList.add('text-green-400');
+            } else if (status === 'alert') {
+                card.classList.add('agent-active');
+                card.style.borderLeftColor = '#ef4444';
+                dot.className = 'status-dot status-alert';
+                desc.innerText = text;
+                desc.classList.add('text-red-400');
+            } else {
+                dot.className = 'status-dot status-idle';
+                desc.innerText = text;
+                desc.classList.remove('text-green-400', 'text-red-400');
+            }
+        }
+    </script>
+</body>
+</html>
